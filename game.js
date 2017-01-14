@@ -8,9 +8,12 @@ function preload() {
     game.load.spritesheet('cowboy2', 'assets/Cowboy Spritesheet.png', 60, 90);
     game.load.image('back', 'assets/back 210x160.png');
     game.load.spritesheet('bulletStream', 'assets/Bullet Spritesheet.png', 45, 45);
-    game.load.spritesheet('numbers', 'assets/Number Spritesheet.png', 3, 5);
-    game.load.image('sun', 'assets/sun.png');
+    game.load.spritesheet('numbers-high', 'assets/Number Spritesheet High.png', 3, 5);
+    game.load.spritesheet('numbers-low', 'assets/Number Spritesheet Low.png', 3, 5);
+    game.load.image('sun-high', 'assets/sun high.png');
+    game.load.image('sun-low', 'assets/sun low.png');
     game.load.image('horizon', 'assets/horizon.png');
+    game.load.image('small-chunk', 'assets/small chunk.png');
 }
 
 var cowboy1;
@@ -21,6 +24,7 @@ var afterDrawAnim;
 var idleAnim;
 // Juicy plugin
 var juicy;
+var emitter;
 
 function setup() {
 
@@ -40,7 +44,17 @@ function create() {
     cowboy2.setOther(cowboy1);
 
     game.input.keyboard.onDownCallback = handleDirectionPress;
+
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+
+    emitter = game.add.emitter(0, 0, 100);
+
+    emitter.makeParticles('small-chunk');
+    emitter.gravity = 200;
+    emitter.maxParticleScale = 5;
+    emitter.maxParticleSpeed = new Phaser.Point(200, 600);
 }
+
 
 function update() {
 }
@@ -130,11 +144,12 @@ function Cowboy(x, y, number) {
     this.bulletStream = new BulletStream(bulletStreamPos.x, bulletStreamPos.y, 5);
 
     // hp bar
-    this.sunSprite = game.add.image(sunPos.x, sunPos.y, 'sun');
-    this.sunSprite.scale.set(4);
-    this.sunSprite.smoothed = false;
-    // implement dynamic tint change later
-    // this.sunSprite.tint = 0x000000;
+    this.sunLowSprite = game.add.image(sunPos.x, sunPos.y, 'sun-low');
+    this.sunLowSprite.scale.set(4);
+    this.sunLowSprite.smoothed = false;
+    this.sunHighSprite = game.add.image(sunPos.x, sunPos.y, 'sun-high');
+    this.sunHighSprite.scale.set(4);
+    this.sunHighSprite.smoothed = false;
     this.horizonSprite = game.add.image(sunPos.x, sunPos.y + (12 * 4), 'horizon');
     this.horizonSprite.scale.set(4);
     this.horizonSprite.smoothed = false;
@@ -147,16 +162,15 @@ function Cowboy(x, y, number) {
 
     this.killDigits = function () {
         for (var j = 0; j < this.digits.length; j++) {
-            this.digits[j].kill();
-            console.log(this.digits[j]);
+            this.digits[j].high.kill();
+            this.digits[j].low.kill();
         }
 
         this.digits = [];
     };
 
     this.createDigits = function () {
-        var healthString = (Math.round(this.sprite.health * 100)).toString();
-        console.log("++++++++++++" + healthString);
+        var healthString = (Math.round(this.sprite.health * 36)).toString();
         var digitX = this.digitPos.x;
         digitX -= (3 * 4) + 5;
 
@@ -164,10 +178,16 @@ function Cowboy(x, y, number) {
 
         for (var i = 0; i < healthString.length; i++) {
             digitX += (3 * 4) + 5;
-            var digit = game.add.sprite(digitX, this.digitPos.y, 'numbers', parseInt(healthString[i])); //465
-            digit.scale.set(3);
-            digit.smoothed = false;
-            this.digits.push(digit);
+            var digitLow = game.add.sprite(digitX, this.digitPos.y, 'numbers-low', parseInt(healthString[i]));
+            digitLow.scale.set(3);
+            digitLow.smoothed = false;
+            var digitHigh = game.add.sprite(digitX, this.digitPos.y, 'numbers-high', parseInt(healthString[i]));
+            digitHigh.scale.set(3);
+            digitHigh.smoothed = false;
+            this.digits.push({low: digitLow, high: digitHigh});
+
+            // change opacity of digits
+            this.digits[i].high.alpha = this.sprite.health;
         }
     };
 
@@ -175,12 +195,18 @@ function Cowboy(x, y, number) {
 
     // sets the position of the sun to the the health of the sprite using the map function
     this.shiftSunDown = function () {
-        var previousY = this.sunSprite.y;
+        var previousY = this.sunHighSprite.y;
         // tween instead
-        this.sunSprite.y = Math.round(map(this.sprite.health, 0, 1, sunPos.y + (12 * 4), sunPos.y));
-        var difference = this.sunSprite.y - previousY;
+        var toY = Math.round(map(this.sprite.health, 0, 1, sunPos.y + (12 * 4), sunPos.y));
 
+        game.add.tween(this.sunHighSprite).to({y: toY}, 250, null, true);
+        game.add.tween(this.sunLowSprite).to({y: toY}, 250, null, true);
+
+        var difference = toY - previousY;
         this.digitPos.y += difference;
+
+        // change opacity of sun
+        this.sunHighSprite.alpha = this.sprite.health;
     };
 
     // shake and flash the screen, tween this.other getting shot
@@ -197,7 +223,7 @@ function Cowboy(x, y, number) {
 
         // this shouldn't be hard coded
         if(number == 1) {
-             initialPos = new Phaser.Point(650, 288);
+            initialPos = new Phaser.Point(650, 288);
             juicy.jelly(this.other.sprite, 0.1, delay, new Phaser.Point(-4, 4));
         } else if(number == 2) {
             initialPos = new Phaser.Point(150, 288);
@@ -216,16 +242,36 @@ function Cowboy(x, y, number) {
         yTween.start();
 
         // damage other
-        console.log(this.other.sprite.health);
-        console.log(correctPresses);
-        this.other.sprite.health -= (correctPresses * 2) / 100;
-        console.log(this.other.sprite.health);
+        this.other.sprite.health -= (correctPresses) / 36;
         this.other.shiftSunDown();
         this.other.createDigits();
 
-        if (this.other.sprite.health <= 0) {
+        // 0.00001 instead of 0 because of bug where health becomes very very small instead of becoming 0
+        if (this.other.sprite.health <= 0.00001) {
+        // if (this.other.sprite.health < 1) {
             this.other.sprite.kill();
+            this.other.sunHighSprite.kill();
+            this.other.sunLowSprite.kill();
             this.other.killDigits();
+            this.other.bulletStream.killBullets();
+
+            // head
+            emitter.x = this.other.sprite.x;
+            emitter.y = this.other.sprite.y - 150;
+            emitter.start(true, 3000, null, 20);
+            // body
+            emitter.x = this.other.sprite.x - 50;
+            emitter.y = this.other.sprite.y - (100);
+            emitter.start(true, 3000, null, 30);
+            emitter.x = this.other.sprite.x - 50;
+            emitter.y = this.other.sprite.y;
+            emitter.start(true, 3000, null, 30);
+            emitter.x = this.other.sprite.x;
+            emitter.y = this.other.sprite.y;
+            emitter.start(true, 3000, null, 30);
+            emitter.x = this.other.sprite.x;
+            emitter.y = this.other.sprite.y + 50;
+            emitter.start(true, 3000, null, 30);
         }
 
         // reset correctPresses for the new round
@@ -340,6 +386,14 @@ function BulletStream(x, y) {
             tween.to({y: y}, 600, Phaser.Easing.Elastic.Out, false);
             tween.start();
         }
+    };
+
+    this.killBullets = function () {
+        for (var i = 0; i < this.bullets.length; i++) {
+            this.bullets[i].sprite.kill();
+        }
+
+        this.bullets = [];
     };
 
     this.add();
