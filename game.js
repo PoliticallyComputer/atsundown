@@ -15,6 +15,7 @@ function preload() {
     game.load.image('horizon', 'assets/horizon.png');
     game.load.image('small-chunk', 'assets/small chunk.png');
     game.load.spritesheet('indicator', 'assets/Arrow Spritesheet.png', 24, 24);
+    game.load.image('rematch-icon', 'assets/rematch-icon.png');
 }
 
 var cowboy1;
@@ -26,6 +27,8 @@ var idleAnim;
 // Juicy plugin
 var juicy;
 var emitter;
+// the sprite for the rematch icon
+var rematch;
 
 function setup() {
 
@@ -88,11 +91,30 @@ function handleDirectionPress(e) {
 
 // determines if the correct direction was pressed and calls the corresponding function
 function handlePressCorrectness(direction, cowboy) {
-    if(cowboy.bulletStream.bullets[cowboy.bulletStream.selectedIndex].direction == direction) {
+    if (cowboy.bulletStream.bullets[cowboy.bulletStream.selectedIndex].direction == direction) {
         cowboy.pressBulletCorrectly();
     } else {
         cowboy.pressBulletIncorrectly();
     }
+}
+
+function rematchListener() {
+    console.log("++++++++");
+    create();
+    console.log(cowboy1 + ", " + cowboy2);
+}
+
+function createRematchIcon(x, y) {
+    rematch = game.add.image(x, y, 'rematch-icon');
+    rematch.scale.set(4);
+    rematch.smoothed = false;
+    rematch.anchor.set(0.5, 0.5);
+    rematch.alpha = 0;
+    rematch.inputEnabled = true;
+
+    game.add.tween(rematch).to({alpha: 1}, 2000, Phaser.Easing.Cubic.Out, true, 1500);
+
+    rematch.events.onInputDown.add(rematchListener, this);
 }
 
 
@@ -214,17 +236,23 @@ function Cowboy(x, y, number) {
 
     // shake and flash the screen, tween this.other getting shot
     // executed when 'draw' animation completes
-    this.shootOther = function () {
+    this.shoot = function () {
         //duration, strength
         juicy.shake(20, 40);
         // colour, duration
         game.camera.flash(0xffffff, 100);
 
+        // checks to see if other is alive before calling damageOther
+        if (this.other.sprite.health >= 0.0001) {
+            this.damageOther();
+        }
+    };
+
+    this.damageOther = function () {
         var delay = 50;
 
         var initialPos;
 
-        // this shouldn't be hard coded
         if(number == 1) {
             initialPos = new Phaser.Point(650, 288);
             juicy.jelly(this.other.sprite, 0.1, delay, new Phaser.Point(-4, 4));
@@ -251,7 +279,7 @@ function Cowboy(x, y, number) {
 
         // 0.00001 instead of 0 because of bug where health becomes very very small instead of becoming 0
         if (this.other.sprite.health <= 0.00001) {
-        // if (this.other.sprite.health < 1) {
+            // if (this.other.sprite.health < 1) {
             this.other.sprite.kill();
             this.other.sunHighSprite.kill();
             this.other.sunLowSprite.kill();
@@ -275,6 +303,8 @@ function Cowboy(x, y, number) {
             emitter.x = this.other.sprite.x;
             emitter.y = this.other.sprite.y + 50;
             emitter.start(true, 3000, null, 30);
+
+            createRematchIcon(this.other.sprite.x, this.other.sprite.y);
         }
 
         // reset correctPresses for the new round
@@ -349,7 +379,7 @@ function Cowboy(x, y, number) {
     drawAnim = this.sprite.animations.add('draw', [4, 5, 6, 7, 8, 9], 15, false);
     // 10 fps, no loop
     afterDrawAnim = this.sprite.animations.add('after-draw', [7, 7, 7, 6, 5, 4], 10, false);
-    drawAnim.onComplete.add(this.shootOther, this);
+    drawAnim.onComplete.add(this.shoot, this);
     drawAnim.onComplete.add(this.playAfterDraw, this);
     afterDrawAnim.onComplete.add(this.resumeGameplay, this);
     this.sprite.animations.play('idle');
