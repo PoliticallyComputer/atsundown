@@ -14,6 +14,7 @@ function preload() {
     game.load.image('sun-low', 'assets/sun low.png');
     game.load.image('horizon', 'assets/horizon.png');
     game.load.image('small-chunk', 'assets/small chunk.png');
+    game.load.spritesheet('indicator', 'assets/Arrow Spritesheet.png', 24, 24);
 }
 
 var cowboy1;
@@ -103,6 +104,9 @@ function Bullet(x, y, column) {
     // gets a random direction
     this.sprite = game.add.sprite(x, y, 'bulletStream', (rowNum * 3) + column);
 
+    // to keep track of where the sprite should be regardless of how it is tweened
+    this.yLocation = y + 50;
+
     if(rowNum == 0) {
         this.direction = 'up';
     } else if(rowNum == 1) {
@@ -129,19 +133,18 @@ function Cowboy(x, y, number) {
         this.sprite.scale.set(4);
         bulletStreamPos = new Phaser.Point(270, 270);
         sunPos = new Phaser.Point(110, 500);
-        // tweak positioning
-        this.digitPos = new Phaser.Point(165, 490); // 109
+        this.digitPos = new Phaser.Point(165, 490);
     } else if (number == 2) {
         this.sprite.scale.set(-4, 4);
         bulletStreamPos = new Phaser.Point(485, 270);
-        sunPos = new Phaser.Point(589, 500); //634
-        this.digitPos = new Phaser.Point(645, 490); //690
+        sunPos = new Phaser.Point(589, 500);
+        this.digitPos = new Phaser.Point(645, 490);
     }
 
     this.sprite.smoothed = false;
     this.sprite.anchor.setTo(0.5, 0.5);
 
-    this.bulletStream = new BulletStream(bulletStreamPos.x, bulletStreamPos.y, 5);
+    this.bulletStream = new BulletStream(bulletStreamPos.x, bulletStreamPos.y);
 
     // hp bar
     this.sunLowSprite = game.add.image(sunPos.x, sunPos.y, 'sun-low');
@@ -308,10 +311,21 @@ function Cowboy(x, y, number) {
             this.bulletStream.bullets[this.bulletStream.selectedIndex + 1].sprite.frame++;
         }
 
-        // shifts all bullets down by increment
-        for(var i = 0; i < this.bulletStream.bullets.length; i++) {
+        // shift the last 6 bullets down by increment
+        for(var i = this.bulletStream.bullets.length - 6; i < this.bulletStream.bullets.length; i++) {
+            // remove all tweens from the bullet
+            if (game.tweens.isTweening(this.bulletStream.bullets[i].sprite)) {
+                game.tweens.removeFrom(this.bulletStream.bullets[i].sprite);
+            }
+            // pop it into the position it should be at
+            this.bulletStream.bullets[i].sprite.y = this.bulletStream.bullets[i].yLocation;
+
+            // move the sprite down with tweening
             game.add.tween(this.bulletStream.bullets[i].sprite).to({y: this.bulletStream.bullets[i].sprite.y +
-                this.bulletStream.INCREMENT}, 1000, Phaser.Easing.Elastic.Out, true);
+            this.bulletStream.INCREMENT}, 200, Phaser.Easing.Back.Out, true);
+
+            // update yLocation to reflect the current location
+            this.bulletStream.bullets[i].yLocation += this.bulletStream.INCREMENT;
         }
 
         // checks if this was the last bullet
@@ -344,7 +358,7 @@ function Cowboy(x, y, number) {
 // constructor function for the BulletStream object
 // creates a set of <numBullets> Bullets, at (x, y), stacked vertically
 // tweened into place
-// stores selected index, bullets, and INCREMENT
+// stores selected index, bullets
 function BulletStream(x, y) {
     this.bullets = [];
     this.selectedIndex = 0;
@@ -352,24 +366,29 @@ function BulletStream(x, y) {
     this.x = x;
     this.y = y;
 
-    // the vertical space between bullets
-    this.INCREMENT = 50; // 63
+    this.indicatorSprite = game.add.sprite(x - 40, y + 13, 'indicator', 0);
+    this.indicatorSprite.animations.add('flashing', [0, 1], 1, true);
+    this.indicatorSprite.animations.play('flashing');
 
-    var tween;
+    // the vertical space between bullets
+    this.INCREMENT = 50;
 
     this.add = function () {
+        for (var j = 0; j < this.bullets.length; j++) {
+            var offScreen = 900;
+
+            game.add.tween(this.bullets[j].sprite).to({y: offScreen}, 200, null, true);
+        }
+
         // the number of bullets per round
         var NUM_BULLETS = 6;
 
         // the first bullet
-        this.bullets.push(new Bullet(this.x, 0, 1));
+        this.bullets.push(new Bullet(this.x, this.y - 50, 1));
 
-        // tween past this.y
-        tween = game.add.tween(this.bullets[this.bullets.length - 1].sprite).to({y: this.y + 20}, 300,
-            Phaser.Easing.Quadratic.InOut, false);
-        // bounce back elastic
-        tween.to({y: this.y}, 600, Phaser.Easing.Elastic.Out, false);
-        tween.start();
+        // simpler tween
+        game.add.tween(this.bullets[this.bullets.length - 1].sprite).to({y: this.y}, 600,
+            Phaser.Easing.Elastic.Out, true);
 
         // temporarily store the starting position so we can increment here without changing the real value
         var x = this.x;
@@ -378,13 +397,10 @@ function BulletStream(x, y) {
         // adding the rest of the bullets
         for(var i = 0; i < NUM_BULLETS - 1; i++) {
             y -= this.INCREMENT;
-            this.bullets.push(new Bullet(x, 0, 0));
-            // tween past this.y
-            tween = game.add.tween(this.bullets[this.bullets.length - 1].sprite).to({y: y + 20}, 300,
-                Phaser.Easing.Quadratic.InOut, false);
-            // bounce back elastic
-            tween.to({y: y}, 600, Phaser.Easing.Elastic.Out, false);
-            tween.start();
+            this.bullets.push(new Bullet(x, y - 50, 0));
+
+            game.add.tween(this.bullets[this.bullets.length - 1].sprite).to({y: y}, 600,
+                Phaser.Easing.Elastic.Out, true);
         }
     };
 
@@ -394,6 +410,9 @@ function BulletStream(x, y) {
         }
 
         this.bullets = [];
+
+        // also kill the indicator
+        this.indicatorSprite.kill();
     };
 
     this.add();
