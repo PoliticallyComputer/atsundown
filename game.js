@@ -59,7 +59,9 @@ function create() {
     mountains.anchor.setTo(0.5, 0.5);
 
     gravestone1 = game.add.image(150 + 10, 800, 'gravestone');
+    gravestone1.inputEnabled = false;
     gravestone2 = game.add.image(650 - 10, 800, 'gravestone');
+    gravestone2.inputEnabled = false;
 
     emitter2 = game.add.emitter(0, 0, 100);
     emitter2.makeParticles('dirt');
@@ -91,9 +93,10 @@ function create() {
 function startListener() {
     var tween = game.add.tween(start).to({y: 288}, 2000, Phaser.Easing.Cubic.In, true);
     tween.onComplete.add(go, this);
-    // game.add.tween(start).to({tint: 0xf61515}, 2000, Phaser.Easing.Exponential.In, true);
 
     start.events.destroy();
+
+    start.inputEnabled = false;
 }
 
 function go() {
@@ -108,7 +111,15 @@ function update() {
 }
 
 function handleDirectionPress(e) {
-    if(((e.keyCode != Phaser.Keyboard.W && e.keyCode != Phaser.Keyboard.A && e.keyCode != Phaser.Keyboard.S &&
+    if (e.keyCode == Phaser.Keyboard.SPACEBAR) {
+        console.log(start.inputEnabled == true);
+        console.log(gravestone1.inputEnabled == true || gravestone2.inputEnabled == true);
+        if (start.inputEnabled == true) {
+            startListener();
+        } else if (gravestone1.inputEnabled == true || gravestone2.inputEnabled == true) {
+            create();
+        }
+    } else if(((e.keyCode != Phaser.Keyboard.W && e.keyCode != Phaser.Keyboard.A && e.keyCode != Phaser.Keyboard.S &&
         e.keyCode != Phaser.Keyboard.D) || cowboy1.bulletStream.selectedIndex >= cowboy1.bulletStream.length ||
         cowboy1.bulletStream.selectedIndex >= cowboy1.bulletStream.bullets.length) &&
         ((e.keyCode != Phaser.Keyboard.UP && e.keyCode != Phaser.Keyboard.LEFT && e.keyCode != Phaser.Keyboard.DOWN &&
@@ -295,7 +306,7 @@ function Cowboy(x, y, number) {
         // intensity, duration, force
         game.camera.shake(0.02, 300, true);
         // colour, duration
-        game.camera.flash(0xffffff, 100);
+        game.camera.flash(0xf1c9a2, 100);
 
         // checks to see if other is alive before calling damageOther
         if (this.other.sprite.health >= 0.0001) {
