@@ -7,6 +7,9 @@ function preload() {
     game.load.spritesheet('cowboy1', 'assets/Cowboy Spritesheet.png', 60, 90);
     game.load.spritesheet('cowboy2', 'assets/Cowboy Spritesheet.png', 60, 90);
     game.load.image('back', 'assets/back 210x160.png');
+    game.load.image('sky', 'assets/sky.png');
+    game.load.image('mountains', 'assets/mountains.png');
+    game.load.image('ground', 'assets/ground.png');
     game.load.spritesheet('bulletStream', 'assets/Bullet Spritesheet.png', 45, 45);
     game.load.spritesheet('numbers-high', 'assets/Number Spritesheet High.png', 3, 5);
     game.load.spritesheet('numbers-low', 'assets/Number Spritesheet Low.png', 3, 5);
@@ -14,33 +17,59 @@ function preload() {
     game.load.image('sun-low', 'assets/sun low.png');
     game.load.image('horizon', 'assets/horizon.png');
     game.load.image('small-chunk', 'assets/small chunk.png');
+    game.load.image('dirt', 'assets/dirt.png');
     game.load.spritesheet('indicator', 'assets/Arrow Spritesheet.png', 24, 24);
-    game.load.image('rematch-icon', 'assets/rematch-icon.png');
+    game.load.image('gravestone', 'assets/gravestone.png');
+    game.load.image('start', 'assets/start.png');
 }
 
 var cowboy1;
 var cowboy2;
-var back;
+var sky, mountains, ground;
+var start;
 var drawAnim;
 var afterDrawAnim;
 var idleAnim;
-// Juicy plugin
-var juicy;
 var emitter;
-// the sprite for the rematch icon
-var rematch;
+var emitter2;
+var gravestone1;
+var gravestone2;
 
 function setup() {
 
 }
 
 function create() {
-    juicy = game.plugins.add(new Phaser.Plugin.Juicy(this.game));
+    sky = game.add.image(game.world.centerX, game.world.centerY, 'sky');
+    sky.scale.set(4);
+    sky.smoothed = false;
+    sky.anchor.setTo(0.5, 0.5);
 
-    back = game.add.image(game.world.centerX, game.world.centerY, 'back');
-    back.scale.set(4);
-    back.smoothed = false;
-    back.anchor.setTo(0.5, 0.5);
+    start = game.add.image(game.world.centerX, 100, 'start');
+    start.scale.set(4);
+    start.smoothed = false;
+    start.anchor.setTo(0.5, 0.5);
+    // set onclick function
+    start.inputEnabled = true;
+    start.events.onInputDown.add(startListener, this);
+
+    mountains = game.add.image(game.world.centerX, game.world.centerY, 'mountains');
+    mountains.scale.set(4);
+    mountains.smoothed = false;
+    mountains.anchor.setTo(0.5, 0.5);
+
+    gravestone1 = game.add.image(150 + 10, 800, 'gravestone');
+    gravestone2 = game.add.image(650 - 10, 800, 'gravestone');
+
+    emitter2 = game.add.emitter(0, 0, 100);
+    emitter2.makeParticles('dirt');
+    emitter2.gravity = 600;
+    emitter2.maxParticleScale = 5;
+
+    ground = game.add.image(game.world.centerX, game.world.centerY, 'ground');
+    ground.scale.set(4);
+    ground.smoothed = false;
+    ground.anchor.setTo(0.5, 0.5);
 
     cowboy1 = new Cowboy(150, 288, 1);
     cowboy2 = new Cowboy(650, 288, 2);
@@ -57,6 +86,21 @@ function create() {
     emitter.gravity = 200;
     emitter.maxParticleScale = 5;
     emitter.maxParticleSpeed = new Phaser.Point(200, 600);
+}
+
+function startListener() {
+    var tween = game.add.tween(start).to({y: 288}, 2000, Phaser.Easing.Cubic.In, true);
+    tween.onComplete.add(go, this);
+    // game.add.tween(start).to({tint: 0xf61515}, 2000, Phaser.Easing.Exponential.In, true);
+
+    start.events.destroy();
+}
+
+function go() {
+    cowboy1.bulletStream.add();
+    cowboy2.bulletStream.add();
+
+    start.kill();
 }
 
 
@@ -98,23 +142,32 @@ function handlePressCorrectness(direction, cowboy) {
     }
 }
 
-function rematchListener() {
-    console.log("++++++++");
-    create();
-    console.log(cowboy1 + ", " + cowboy2);
-}
+function createRematchIcon(gravestone) {
+    gravestone.scale.set(4);
+    gravestone.smoothed = false;
+    gravestone.anchor.set(0.5, 0.5);
+    gravestone.inputEnabled = true;
 
-function createRematchIcon(x, y) {
-    rematch = game.add.image(x, y, 'rematch-icon');
-    rematch.scale.set(4);
-    rematch.smoothed = false;
-    rematch.anchor.set(0.5, 0.5);
-    rematch.alpha = 0;
-    rematch.inputEnabled = true;
+    game.add.tween(gravestone).to({y: 405}, 3000, Phaser.Easing.Elastic.InOut, true, 700);
 
-    game.add.tween(rematch).to({alpha: 1}, 2000, Phaser.Easing.Cubic.Out, true, 1500);
+    gravestone.events.onInputDown.add(create, this);
 
-    rematch.events.onInputDown.add(rematchListener, this);
+    game.time.events.add(2200, function () {
+        // middle
+        emitter2.x = gravestone.x;
+        emitter2.y = 415;
+        emitter2.start(true, 3000, null, 30);
+
+        // left
+        emitter2.x = gravestone.x - 40;
+        emitter2.y = 415;
+        emitter2.start(true, 3000, null, 10);
+
+        // right
+        emitter2.x = gravestone.x + 40;
+        emitter2.y = 415;
+        emitter2.start(true, 3000, null, 10);
+    }, this);
 }
 
 
@@ -156,7 +209,7 @@ function Cowboy(x, y, number) {
         bulletStreamPos = new Phaser.Point(270, 270);
         sunPos = new Phaser.Point(110, 500);
         this.digitPos = new Phaser.Point(165, 490);
-    } else if (number == 2) {
+    } else { // number is 2
         this.sprite.scale.set(-4, 4);
         bulletStreamPos = new Phaser.Point(485, 270);
         sunPos = new Phaser.Point(589, 500);
@@ -237,8 +290,8 @@ function Cowboy(x, y, number) {
     // shake and flash the screen, tween this.other getting shot
     // executed when 'draw' animation completes
     this.shoot = function () {
-        //duration, strength
-        juicy.shake(20, 40);
+        // intensity, duration, force
+        game.camera.shake(0.02, 300, true);
         // colour, duration
         game.camera.flash(0xffffff, 100);
 
@@ -279,7 +332,7 @@ function Cowboy(x, y, number) {
 
         // 0.00001 instead of 0 because of bug where health becomes very very small instead of becoming 0
         if (this.other.sprite.health <= 0.00001) {
-            // if (this.other.sprite.health < 1) {
+        // if (this.other.sprite.health < 1) {
             this.other.sprite.kill();
             this.other.sunHighSprite.kill();
             this.other.sunLowSprite.kill();
@@ -304,7 +357,11 @@ function Cowboy(x, y, number) {
             emitter.y = this.other.sprite.y + 50;
             emitter.start(true, 3000, null, 30);
 
-            createRematchIcon(this.other.sprite.x, this.other.sprite.y);
+            if (number == 1) {
+                createRematchIcon(gravestone2);
+            } else { // number is 2
+                createRematchIcon(gravestone1);
+            }
         }
 
         // reset correctPresses for the new round
@@ -327,6 +384,9 @@ function Cowboy(x, y, number) {
     };
 
     this.pressBulletCorrectly = function () {
+        //intensity, duration, force
+        game.camera.shake(0.005, 50, true);
+
         // update the selected bullet
         this.bulletStream.bullets[this.bulletStream.selectedIndex].sprite.frame++;
 
@@ -399,11 +459,14 @@ function BulletStream(x, y) {
     this.indicatorSprite = game.add.sprite(x - 40, y + 13, 'indicator', 0);
     this.indicatorSprite.animations.add('flashing', [0, 1], 1, true);
     this.indicatorSprite.animations.play('flashing');
+    this.indicatorSprite.alpha = 0;
 
     // the vertical space between bullets
     this.INCREMENT = 50;
 
     this.add = function () {
+        this.indicatorSprite.alpha = 1;
+
         for (var j = 0; j < this.bullets.length; j++) {
             var offScreen = 900;
 
@@ -444,6 +507,4 @@ function BulletStream(x, y) {
         // also kill the indicator
         this.indicatorSprite.kill();
     };
-
-    this.add();
 }
