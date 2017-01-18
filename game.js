@@ -167,6 +167,8 @@ function createRematchIcon(gravestone) {
         emitter2.x = gravestone.x + 40;
         emitter2.y = 415;
         emitter2.start(true, 3000, null, 10);
+
+        game.camera.shake(0.01, 300, true);
     }, this);
 }
 
@@ -301,6 +303,20 @@ function Cowboy(x, y, number) {
         }
     };
 
+    this.jelly = function(delay, initialScale) {
+        var strength = 0.1;
+
+        var xTween = game.add.tween(this.other.sprite.scale).to({x: initialScale.x - (initialScale.x * strength)},
+            100, Phaser.Easing.Quadratic.InOut, false, delay);
+        xTween.to({x: initialScale.x}, 600, Phaser.Easing.Elastic.Out, false, delay);
+        xTween.start();
+
+        var yTween = game.add.tween(this.other.sprite.scale).to({y: initialScale.y + (initialScale.y * strength)},
+            100, Phaser.Easing.Quadratic.InOut, false, delay + 50);
+        yTween.to({y: initialScale.y}, 600, Phaser.Easing.Elastic.Out, false, delay);
+        yTween.start();
+    };
+
     this.damageOther = function () {
         var delay = 50;
 
@@ -308,10 +324,10 @@ function Cowboy(x, y, number) {
 
         if(number == 1) {
             initialPos = new Phaser.Point(650, 288);
-            juicy.jelly(this.other.sprite, 0.1, delay, new Phaser.Point(-4, 4));
+            this.jelly(delay, new Phaser.Point(-4, 4));
         } else if(number == 2) {
             initialPos = new Phaser.Point(150, 288);
-            juicy.jelly(this.other.sprite, 0.1, delay, new Phaser.Point(4, 4));
+            this.jelly(delay, new Phaser.Point(4, 4));
         }
 
         var strength = 0.05;
