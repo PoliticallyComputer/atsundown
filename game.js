@@ -21,6 +21,8 @@ function preload() {
     game.load.spritesheet('indicator', 'assets/Arrow Spritesheet.png', 24, 24);
     game.load.image('gravestone', 'assets/gravestone.png');
     game.load.image('start', 'assets/start.png');
+    game.load.spritesheet('icons', 'assets/Icon Spritesheet.png', 8, 7);
+    game.load.spritesheet('tutorial-screen', 'assets/tutorial-screen.png');
 }
 
 var cowboy1;
@@ -34,12 +36,22 @@ var emitter;
 var emitter2;
 var gravestone1;
 var gravestone2;
+var tutorialIcon;
+var mute;
+var tutorialScreen;
+var backOverlay;
+var starting = false;
+var paused = false;
 
 function setup() {
 
 }
 
 function create() {
+    game.scale.pageAlignHorizontally = true;
+    game.scale.pageAlignVertically = true;
+    game.scale.refresh();
+
     sky = game.add.image(game.world.centerX, game.world.centerY, 'sky');
     sky.scale.set(4);
     sky.smoothed = false;
@@ -51,7 +63,7 @@ function create() {
     start.anchor.setTo(0.5, 0.5);
     // set onclick function
     start.inputEnabled = true;
-    start.events.onInputDown.add(startListener, this);
+    start.events.onInputDown.add(lowerStart, this);
 
     mountains = game.add.image(game.world.centerX, game.world.centerY, 'mountains');
     mountains.scale.set(4);
@@ -88,9 +100,118 @@ function create() {
     emitter.gravity = 200;
     emitter.maxParticleScale = 5;
     emitter.maxParticleSpeed = new Phaser.Point(200, 600);
+
+    tutorialIcon = game.add.sprite(700, 15, 'icons', 0);
+    tutorialIcon.scale.set(4);
+    tutorialIcon.smoothed = false;
+    // set onclick function
+    tutorialIcon.inputEnabled = true;
+    tutorialIcon.events.onInputDown.add(showTutorialScreen, this);
+
+    // mute = game.add.sprite(745, 15, 'icons', 1);
+    // mute.scale.set(4);
+    // mute.smoothed = false;
+    // // set onclick function
+    // mute.inputEnabled = true;
+    // mute.events.onInputDown.add(muteSound, this);
+
+    backOverlay = game.add.image(game.world.centerX, game.world.centerY, 'back');
+    backOverlay.scale.set(4);
+    backOverlay.smoothed = false;
+    backOverlay.anchor.setTo(0.5, 0.5);
+    backOverlay.alpha = 0;
+
+    tutorialScreen = game.add.image(game.world.centerX, game.world.centerY - game.world.height, 'tutorial-screen');
+    tutorialScreen.scale.set(4);
+    tutorialScreen.smoothed = false;
+    tutorialScreen.anchor.setTo(0.5, 0.5);
 }
 
-function startListener() {
+function showTutorialScreen() {
+    if (starting == false) {
+        game.add.tween(backOverlay).to({alpha: 1}, 50, null, true);
+
+        game.add.tween(tutorialScreen).to({y: game.world.centerY}, 1500,
+            Phaser.Easing.Elastic.Out, true);
+        paused = true;
+
+        if (cowboy1.bulletStream.bullets.length > 0) {
+            for (var i = cowboy1.bulletStream.bullets.length - 6; i < cowboy1.bulletStream.bullets.length; i++) {
+                cowboy1.bulletStream.bullets[i].sprite.alpha = 0;
+            }
+        }
+
+        if (cowboy2.bulletStream.bullets.length > 0) {
+            for (var j = cowboy2.bulletStream.bullets.length - 6; j < cowboy2.bulletStream.bullets.length; j++) {
+                cowboy2.bulletStream.bullets[j].sprite.alpha = 0;
+            }
+        }
+
+        for (var k = 0; k < cowboy1.digits.length; k++) {
+            cowboy1.digits[k].low.alpha = 0;
+            cowboy1.digits[k].high.alpha = 0;
+        }
+
+        for (var h = 0; h < cowboy1.digits.length; h++) {
+            cowboy2.digits[h].low.alpha = 0;
+            cowboy2.digits[h].high.alpha = 0;
+        }
+
+        cowboy1.killDigits();
+        cowboy2.killDigits();
+
+        game.input.onDown.add(closeTutorialScreen, this);
+        var spacebar = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+        spacebar.onDown.add(closeTutorialScreen, this);
+    }
+}
+
+function closeTutorialScreen() {
+    game.input.keyboard.removeKey(Phaser.Keyboard.SPACEBAR);
+    game.input.onDown.remove(closeTutorialScreen, this);
+
+    if (game.tweens.isTweening(tutorialScreen)) {
+        game.tweens.removeFrom(tutorialScreen);
+    }
+
+    game.add.tween(backOverlay).to({alpha: 0}, 50, null, true);
+
+    var tutorialTween = game.add.tween(tutorialScreen).to({y: game.world.centerY - game.world.height}, 1000,
+        Phaser.Easing.Elastic.Out, true);
+    tutorialTween.onComplete.add(unpauseGame, this);
+    // paused = false;
+
+    if (cowboy1.bulletStream.bullets.length > 0) {
+        for (var i = cowboy1.bulletStream.bullets.length - 6; i < cowboy1.bulletStream.bullets.length; i++) {
+            cowboy1.bulletStream.bullets[i].sprite.alpha = 1;
+        }
+
+        for (var j = cowboy2.bulletStream.bullets.length - 6; j < cowboy2.bulletStream.bullets.length; j++) {
+            cowboy2.bulletStream.bullets[j].sprite.alpha = 1;
+        }
+    }
+
+    cowboy1.createDigits();
+    cowboy2.createDigits();
+}
+
+function unpauseGame() {
+    paused = false;
+}
+
+function muteSound() {
+    if (mute.frame == 1) {
+        mute.frame = 2;
+    } else {
+        mute.frame = 1;
+    }
+
+    // actually mute sound later
+}
+
+function lowerStart() {
+    starting = true;
+
     var tween = game.add.tween(start).to({y: 288}, 2000, Phaser.Easing.Cubic.In, true);
     tween.onComplete.add(go, this);
 
@@ -104,6 +225,8 @@ function go() {
     cowboy2.bulletStream.add();
 
     start.kill();
+
+    starting = false;
 }
 
 
@@ -111,11 +234,9 @@ function update() {
 }
 
 function handleDirectionPress(e) {
-    if (e.keyCode == Phaser.Keyboard.SPACEBAR) {
-        console.log(start.inputEnabled == true);
-        console.log(gravestone1.inputEnabled == true || gravestone2.inputEnabled == true);
+    if (e.keyCode == Phaser.Keyboard.SPACEBAR && !paused) {
         if (start.inputEnabled == true) {
-            startListener();
+            lowerStart();
         } else if (gravestone1.inputEnabled == true || gravestone2.inputEnabled == true) {
             create();
         }
@@ -123,7 +244,9 @@ function handleDirectionPress(e) {
         e.keyCode != Phaser.Keyboard.D) || cowboy1.bulletStream.selectedIndex >= cowboy1.bulletStream.length ||
         cowboy1.bulletStream.selectedIndex >= cowboy1.bulletStream.bullets.length) &&
         ((e.keyCode != Phaser.Keyboard.UP && e.keyCode != Phaser.Keyboard.LEFT && e.keyCode != Phaser.Keyboard.DOWN &&
-        e.keyCode != Phaser.Keyboard.RIGHT) || cowboy2.bulletStream.selectedIndex >= cowboy2.bulletStream.bullets.length)) {
+        e.keyCode != Phaser.Keyboard.RIGHT) ||
+        cowboy2.bulletStream.selectedIndex >= cowboy2.bulletStream.bullets.length) ||
+        paused) {
         return;
     } else if(e.keyCode == Phaser.Keyboard.W) {
         handlePressCorrectness('up', cowboy1);
@@ -300,13 +423,13 @@ function Cowboy(x, y, number) {
         this.sunHighSprite.alpha = this.sprite.health;
     };
 
-    // shake and flash the screen, tween this.other getting shot
+    // shake and flash the screen
     // executed when 'draw' animation completes
     this.shoot = function () {
         // intensity, duration, force
         game.camera.shake(0.02, 300, true);
         // colour, duration
-        game.camera.flash(0xf1c9a2, 100);
+        game.camera.flash(0xffffff, 100);
 
         // checks to see if other is alive before calling damageOther
         if (this.other.sprite.health >= 0.0001) {
@@ -356,6 +479,27 @@ function Cowboy(x, y, number) {
         this.other.sprite.health -= (correctPresses) / 36;
         this.other.shiftSunDown();
         this.other.createDigits();
+
+        var offset;
+
+        if (number == 1) {
+            offset = -30;
+        } else { // number is 2
+            offset = 30;
+        }
+
+        // show damage on screen
+        var damageSprite = game.add.sprite(this.other.sprite.x + offset, this.other.sprite.y - 70, 'numbers-low',
+            correctPresses);
+        damageSprite.scale.set(4);
+        damageSprite.smoothed = false;
+        damageSprite.tint = 0x9a0606;
+
+        game.add.tween(damageSprite).to({y: y - 200}, 300,
+            Phaser.Easing.Quadratic.In, true, 300);
+        var alphaTween = game.add.tween(damageSprite).to({alpha: 0}, 300,
+            Phaser.Easing.Quadratic.In, true, 400);
+        alphaTween.onComplete.add(damageSprite.kill, this);
 
         // 0.00001 instead of 0 because of bug where health becomes very very small instead of becoming 0
         if (this.other.sprite.health <= 0.00001) {
@@ -411,8 +555,6 @@ function Cowboy(x, y, number) {
     };
 
     this.pressBulletCorrectly = function () {
-        //intensity, duration, force
-        game.camera.shake(0.005, 50, true);
 
         // update the selected bullet
         this.bulletStream.bullets[this.bulletStream.selectedIndex].sprite.frame++;
