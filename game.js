@@ -23,6 +23,11 @@ function preload() {
     game.load.image('start', 'assets/start.png');
     game.load.spritesheet('icons', 'assets/Icon Spritesheet.png', 8, 7);
     game.load.spritesheet('tutorial-screen', 'assets/tutorial-screen.png');
+    game.load.audio('bulletSound', 'assets/bullet.ogg');
+    game.load.audio('wrongSound', 'assets/wrong-bullet.ogg');
+    game.load.audio('gunshotSound', 'assets/gunshot.ogg');
+    game.load.audio('windSound', 'assets/wind.ogg');
+    game.load.audio('explosionSound', 'assets/explosion.ogg');
 }
 
 var cowboy1;
@@ -42,6 +47,11 @@ var tutorialScreen;
 var backOverlay;
 var starting = false;
 var paused = false;
+var bulletSound;
+var wrongSound;
+var gunshotSound;
+var windSound;
+var explosionSound;
 
 function setup() {
 
@@ -108,12 +118,12 @@ function create() {
     tutorialIcon.inputEnabled = true;
     tutorialIcon.events.onInputDown.add(showTutorialScreen, this);
 
-    // mute = game.add.sprite(745, 15, 'icons', 1);
-    // mute.scale.set(4);
-    // mute.smoothed = false;
-    // // set onclick function
-    // mute.inputEnabled = true;
-    // mute.events.onInputDown.add(muteSound, this);
+    mute = game.add.sprite(745, 15, 'icons', 1);
+    mute.scale.set(4);
+    mute.smoothed = false;
+    // set onclick function
+    mute.inputEnabled = true;
+    mute.events.onInputDown.add(muteSound, this);
 
     backOverlay = game.add.image(game.world.centerX, game.world.centerY, 'back');
     backOverlay.scale.set(4);
@@ -125,7 +135,21 @@ function create() {
     tutorialScreen.scale.set(4);
     tutorialScreen.smoothed = false;
     tutorialScreen.anchor.setTo(0.5, 0.5);
+
+    bulletSound = game.add.audio('bulletSound');
+    wrongSound = game.add.audio('wrongSound');
+    gunshotSound = game.add.audio('gunshotSound');
+    explosionSound = game.add.audio('explosionSound');
+
+    if(windSound) { // when the game is reset, stop playing the previous windSound
+        windSound.stop();
+    }
+
+    windSound = game.add.audio('windSound');
+    windSound.loop = true;
+    windSound.play();
 }
+
 
 function showTutorialScreen() {
     if (starting == false) {
@@ -202,8 +226,10 @@ function unpauseGame() {
 function muteSound() {
     if (mute.frame == 1) {
         mute.frame = 2;
+        game.sound.mute = true;
     } else {
         mute.frame = 1;
+        game.sound.mute = false;
     }
 
     // actually mute sound later
@@ -249,7 +275,7 @@ function handleDirectionPress(e) {
         paused) {
         return;
     } else if(e.keyCode == Phaser.Keyboard.W) {
-        handlePressCorrectness('up', cowboy1);
+            handlePressCorrectness('up', cowboy1);
     } else if(e.keyCode == Phaser.Keyboard.S) {
         handlePressCorrectness('down', cowboy1);
     } else if(e.keyCode == Phaser.Keyboard.A) {
@@ -270,8 +296,10 @@ function handleDirectionPress(e) {
 // determines if the correct direction was pressed and calls the corresponding function
 function handlePressCorrectness(direction, cowboy) {
     if (cowboy.bulletStream.bullets[cowboy.bulletStream.selectedIndex].direction == direction) {
+        bulletSound.play();
         cowboy.pressBulletCorrectly();
     } else {
+        wrongSound.play();
         cowboy.pressBulletIncorrectly();
     }
 }
@@ -430,6 +458,8 @@ function Cowboy(x, y, number) {
         game.camera.shake(0.02, 300, true);
         // colour, duration
         game.camera.flash(0xffffff, 100);
+        // gunshot
+        gunshotSound.play();
 
         // checks to see if other is alive before calling damageOther
         if (this.other.sprite.health >= 0.0001) {
@@ -533,6 +563,8 @@ function Cowboy(x, y, number) {
             } else { // number is 2
                 createRematchIcon(gravestone1);
             }
+
+            explosionSound.play();
         }
 
         // reset correctPresses for the new round
