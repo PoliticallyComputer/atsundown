@@ -4,4 +4,4 @@ At Sundown is a two-player local co-op game where two cowboys race to press the 
 
 Made by Ismael Ghanim.
 
-https://politicallycomputer.github.io/atsundown/
+https://isghanim.github.io/atsundown/
